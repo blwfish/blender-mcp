@@ -13,7 +13,7 @@ bl_info = {
     "name": "Blender MCP Bridge",
     "author": "",
     "version": (0, 1, 0),
-    "blender": (3, 6, 0),
+    "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Blender MCP",
     "description": "TCP server for MCP-driven organic geometry generation",
     "category": "Interface",
@@ -42,7 +42,7 @@ import bmesh
 PROTOCOL_VERSION = "0.1.0"
 ADDON_VERSION = ".".join(str(x) for x in bl_info["version"])
 
-BLENDER_VERSION = ".".join(str(x) for x in bpy.app.version)
+BLENDER_VERSION = bpy.app.version_string
 
 DEFAULT_PORT = 9876
 TIMER_INTERVAL = 0.05  # seconds between queue polls
@@ -486,12 +486,14 @@ def handle_screenshot(params: dict) -> dict:
     width = int(params.get("width", 1920))
     height = int(params.get("height", 1080))
 
-    # Find a 3D viewport area
+    # Find the first 3D viewport and its window
     area = None
+    win = None
     for window in bpy.context.window_manager.windows:
         for a in window.screen.areas:
             if a.type == "VIEW_3D":
                 area = a
+                win = window
                 break
         if area:
             break
@@ -499,80 +501,40 @@ def handle_screenshot(params: dict) -> dict:
     if area is None:
         raise RuntimeError("No 3D viewport found in Blender's UI")
 
-    # Use offscreen rendering for reliable headless-compatible capture
-    # This avoids the context override fragility of bpy.ops.screen.screenshot
+    region = next((r for r in area.regions if r.type == "WINDOW"), None)
+    if region is None:
+        raise RuntimeError("Cannot find VIEW_3D WINDOW region")
+
+    tmp_path = filepath or "/tmp/_blender_mcp_screenshot.png"
+
+    # bpy.ops.screen.screenshot_area (4.x+) captures just the area —
+    # more reliable than the old offscreen GPU path which broke in 4.x.
+    # Fall back to bpy.ops.screen.screenshot for edge cases.
     try:
-        offscreen = bpy.types.GPUOffScreen(width, height)
-        region = None
-        space = None
-        for region_ in area.regions:
-            if region_.type == "WINDOW":
-                region = region_
-                break
-        for space_ in area.spaces:
-            if space_.type == "VIEW_3D":
-                space = space_
-                break
-
-        if region is None or space is None:
-            raise RuntimeError("Cannot find VIEW_3D window region")
-
-        rv3d = space.region_3d
-        offscreen.draw_view3d(
-            bpy.context.scene,
-            bpy.context.view_layer,
-            space,
-            region,
-            rv3d.view_matrix,
-            rv3d.projection_matrix,
-            do_color_management=True,
-        )
-
-        # Read pixels
-        buffer = offscreen.texture_color.read()
-        buffer.dimensions = width * height * 4
-        pixels = bytes(buffer)
-        offscreen.free()
-
-        # Encode to PNG via Blender image API
-        img = bpy.data.images.new("_blender_mcp_screenshot", width=width, height=height, alpha=True)
-        img.pixels.foreach_set([p / 255.0 for p in pixels])
-        img.filepath_raw = filepath or "/tmp/_blender_mcp_screenshot.png"
-        img.file_format = "PNG"
-
-        if filepath:
-            img.save()
-            bpy.data.images.remove(img)
-            file_size = os.path.getsize(filepath)
-            return {"filepath": filepath, "width": width, "height": height, "file_size_bytes": file_size}
-        else:
-            # Return base64
-            img.save()
-            tmp = img.filepath_raw
-            bpy.data.images.remove(img)
-            with open(tmp, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode()
-            os.unlink(tmp)
-            return {"image_base64": b64, "width": width, "height": height}
-
-    except Exception as e:
-        # Fallback: try viewport screenshot operator
-        logger.warning("Offscreen render failed (%s), trying operator fallback", e)
-        tmp_path = filepath or "/tmp/_blender_mcp_screenshot.png"
+        with bpy.context.temp_override(window=win, area=area, region=region):
+            bpy.ops.screen.screenshot_area(filepath=tmp_path)
+    except Exception as e1:
+        logger.warning("screenshot_area failed (%s), trying screenshot fallback", e1)
         try:
-            with bpy.context.temp_override(area=area, region=region):
+            with bpy.context.temp_override(window=win, area=area, region=region):
                 bpy.ops.screen.screenshot(filepath=tmp_path, full=False)
         except Exception as e2:
             raise RuntimeError(
-                f"Both offscreen render ({e}) and screenshot operator ({e2}) failed. "
+                f"screenshot_area failed ({e1}); screenshot also failed ({e2}). "
                 "Ensure a 3D viewport is open and visible."
             )
-        if filepath:
-            return {"filepath": tmp_path, "width": width, "height": height}
-        with open(tmp_path, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode()
-        os.unlink(tmp_path)
-        return {"image_base64": b64, "width": width, "height": height}
+
+    if not os.path.exists(tmp_path):
+        raise RuntimeError("Screenshot operator ran but produced no file")
+
+    if filepath:
+        return {"filepath": tmp_path, "width": width, "height": height,
+                "file_size_bytes": os.path.getsize(tmp_path)}
+
+    with open(tmp_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode()
+    os.unlink(tmp_path)
+    return {"image_base64": b64, "width": width, "height": height}
 
 
 def handle_import_mesh(params: dict) -> dict:
