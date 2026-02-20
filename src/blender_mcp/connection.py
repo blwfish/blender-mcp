@@ -67,7 +67,10 @@ class BlenderConnection:
         logger.info("Connecting to Blender on %s:%d", self.host, self.port)
         try:
             self._reader, self._writer = await asyncio.wait_for(
-                asyncio.open_connection(self.host, self.port),
+                asyncio.open_connection(
+                    self.host, self.port,
+                    limit=64 * 1024 * 1024,   # 64 MB — handles large screenshots/meshes
+                ),
                 timeout=CONNECT_TIMEOUT,
             )
         except ConnectionRefusedError:
@@ -239,6 +242,16 @@ class BlenderConnection:
                 ErrorCode.CONNECTION_LOST,
                 f"Lost connection to Blender while waiting for response: {e}. "
                 "Use manage_connection(action='reconnect') to re-establish.",
+            )
+        except (ValueError, asyncio.LimitOverrunError) as e:
+            # Response exceeded StreamReader buffer — connection buffer is now
+            # poisoned with unread data; mark disconnected so reconnect is forced.
+            self._connected = False
+            raise BlenderConnectionError(
+                ErrorCode.CONNECTION_LOST,
+                f"Response from Blender exceeded buffer limit (response too large): {e}. "
+                "Use manage_connection(action='reconnect') to re-establish, then retry "
+                "with a smaller request (e.g. lower screenshot resolution).",
             )
 
         if not raw:
