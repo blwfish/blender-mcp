@@ -683,7 +683,7 @@ def dispatch_command(req: dict) -> bytes:
 # ─── TCP Server (Background Thread) ──────────────────────────────────────────
 
 class _PendingCommand:
-    __slots__ = ("request", "conn", "done")
+    __slots__ = ("request", "conn", "done", "_response")
 
     def __init__(self, request: dict, conn: "ClientConnection"):
         self.request = request

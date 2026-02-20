@@ -7,6 +7,7 @@ directed at the Blender addon.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from typing import Any
@@ -19,19 +20,32 @@ from .connection import (
     BlenderConnection,
     BlenderConnectionError,
 )
+from .debug import init_debugger, get_debugger
+from .health import init_monitor, get_monitor
 from .protocol import Command, ErrorCode
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 # MCP servers must NOT write anything to stdout (corrupts the stdio transport).
-# Log to stderr or a file only.
+# The debug module sets up file-based logging; we point the root logger at
+# stderr only as a last-resort fallback for startup errors before debug init.
 
-log_level = os.environ.get("BLENDERMCP_LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=getattr(logging, log_level, logging.INFO),
+    level=logging.WARNING,
     format="%(asctime)s %(name)s %(levelname)s %(message)s",
     handlers=[logging.StreamHandler(__import__("sys").stderr)],
 )
 logger = logging.getLogger(__name__)
+
+# ─── Debug Infrastructure ─────────────────────────────────────────────────────
+# Initialized here so file logging is available before any tool is called.
+# Graceful degradation: if init fails we run without debug (log to stderr).
+
+try:
+    _dbg = init_debugger()
+    logger.info("Debug infrastructure initialized — logs: %s", _dbg.log_dir)
+except Exception as _e:
+    _dbg = None
+    logger.warning("Debug init failed (%s) — running without file logging", _e)
 
 # ─── MCP Server ───────────────────────────────────────────────────────────────
 
@@ -62,10 +76,18 @@ async def _ensure_connected() -> BlenderConnection:
     conn = _get_connection()
     if not conn._connected:
         await conn.connect()
+        # Spin up the health monitor after first successful connect
+        monitor = get_monitor()
+        if monitor is None:
+            m = init_monitor(conn)
+            m.start()
     return conn
 
 
 def _connection_error_result(e: BlenderConnectionError) -> dict[str, Any]:
+    monitor = get_monitor()
+    if monitor:
+        monitor.record_connection_lost(e.message)
     return {"status": "error", "error_code": e.code, "message": e.message}
 
 
@@ -81,9 +103,26 @@ def _blender_error_result(resp_error: Any) -> dict[str, Any]:
     }
 
 
+# ─── Decorator shorthand ──────────────────────────────────────────────────────
+# Returns a no-op passthrough if debug is not initialized.
+
+def _tool_dec():
+    dbg = get_debugger()
+    if dbg:
+        return dbg.tool_decorator()
+    import functools
+    def _noop(f):
+        @functools.wraps(f)
+        async def wrapper(*a, **kw):
+            return await f(*a, **kw)
+        return wrapper
+    return _noop
+
+
 # ─── Tool 1: execute_blender_code ────────────────────────────────────────────
 
 @mcp.tool()
+@_tool_dec()
 async def execute_blender_code(code: str, timeout: int = 30) -> dict[str, Any]:
     """
     Execute Python code in Blender's context.
@@ -109,7 +148,7 @@ async def execute_blender_code(code: str, timeout: int = 30) -> dict[str, Any]:
         resp = await conn.send_command(
             Command.EXECUTE_CODE,
             {"code": code, "timeout": timeout},
-            timeout=float(timeout) + 5.0,  # give Blender a few extra seconds
+            timeout=float(timeout) + 5.0,
         )
     except BlenderConnectionError as e:
         return _connection_error_result(e)
@@ -122,6 +161,7 @@ async def execute_blender_code(code: str, timeout: int = 30) -> dict[str, Any]:
 # ─── Tool 2: get_scene_info ───────────────────────────────────────────────────
 
 @mcp.tool()
+@_tool_dec()
 async def get_scene_info(detail_level: str = "summary") -> dict[str, Any]:
     """
     Return structured information about the current Blender scene.
@@ -163,6 +203,7 @@ async def get_scene_info(detail_level: str = "summary") -> dict[str, Any]:
 # ─── Tool 3: export_mesh ─────────────────────────────────────────────────────
 
 @mcp.tool()
+@_tool_dec()
 async def export_mesh(
     filepath: str,
     objects: list[str] | None = None,
@@ -222,6 +263,7 @@ async def export_mesh(
 # ─── Tool 4: check_mesh_printability ─────────────────────────────────────────
 
 @mcp.tool()
+@_tool_dec()
 async def check_mesh_printability(
     object_name: str,
     min_thickness: float = 0.005,
@@ -271,6 +313,7 @@ async def check_mesh_printability(
 # ─── Tool 5: screenshot ───────────────────────────────────────────────────────
 
 @mcp.tool()
+@_tool_dec()
 async def screenshot(
     filepath: str | None = None,
     width: int = 1920,
@@ -309,6 +352,7 @@ async def screenshot(
 # ─── Tool 6: import_mesh ──────────────────────────────────────────────────────
 
 @mcp.tool()
+@_tool_dec()
 async def import_mesh(
     filepath: str,
     format: str | None = None,
@@ -364,13 +408,14 @@ async def manage_connection(action: str) -> dict[str, Any]:
 
     Args:
         action: One of:
-                - "status": Return connection state, versions, uptime.
+                - "status": Return connection state, versions, health stats,
+                            and per-tool performance report.
                 - "reconnect": Disconnect and reconnect to Blender.
                 - "ping": Measure round-trip latency (milliseconds).
 
     Returns:
         Depends on action. Status includes connected, blender_version,
-        addon_version, protocol_version, uptime_seconds.
+        addon_version, protocol_version, uptime_seconds, health, performance.
     """
     if action not in ("status", "reconnect", "ping"):
         return {
@@ -388,13 +433,27 @@ async def manage_connection(action: str) -> dict[str, Any]:
                 "Not connected. Ensure Blender is running with the Blender MCP Bridge addon "
                 "enabled, then call manage_connection(action='reconnect')."
             )
+        # Append health and performance diagnostics
+        monitor = get_monitor()
+        if monitor:
+            st["health"] = monitor.get_status()
+        dbg = get_debugger()
+        if dbg:
+            st["performance"] = dbg.performance_report()
         return {"status": "success", **st}
 
     if action == "reconnect":
+        monitor = get_monitor()
         try:
             result = await conn.reconnect()
+            if monitor:
+                monitor.record_reconnect_attempt(success=True)
+                if not monitor._task or monitor._task.done():
+                    monitor.start()
             return {"status": "success", **result}
         except BlenderConnectionError as e:
+            if monitor:
+                monitor.record_reconnect_attempt(success=False)
             return _connection_error_result(e)
 
     # action == "ping"
@@ -415,7 +474,11 @@ async def manage_connection(action: str) -> dict[str, Any]:
 
 def main() -> None:
     """Run the MCP server (stdio transport)."""
-    logger.info("Blender MCP server starting")
+    dbg = get_debugger()
+    if dbg:
+        dbg.logger.info("Blender MCP server starting")
+    else:
+        logger.info("Blender MCP server starting (no file logging)")
     mcp.run()
 
 

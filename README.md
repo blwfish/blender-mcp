@@ -88,6 +88,27 @@ All modeling occurs at **full prototype dimensions** (meters). Scale is applied 
 - HO scale (1:87.1): `scale = 0.01148`
 - This avoids floating-point precision issues with millimeter-scale Blender geometry.
 
+## Debugging
+
+The server writes structured logs to `/tmp/blender_mcp_debug/` (override with `BLENDERMCP_LOG_DIR`):
+
+| File | Contents |
+|------|----------|
+| `blender_mcp.log` | Rotating text log — every tool call, errors with full tracebacks |
+| `operations_YYYYMMDD.json` | Newline-delimited JSON — one entry per call (errors always; all calls in VERBOSE mode) |
+
+**LEAN mode** (default): only error details are verbose. **VERBOSE mode**: set `BLENDERMCP_LOG_LEVEL=DEBUG`.
+
+The `manage_connection(action="status")` tool surfaces a live summary without touching the files:
+
+```python
+manage_connection(action="status")
+# → includes "health" (ping counts, consecutive failures) and
+#   "performance" (per-tool call counts, avg/min/max ms, error count)
+```
+
+Check these first when something goes wrong — the logs contain tracebacks and timing for every call made in the session.
+
 ## Troubleshooting
 
 **"Cannot connect to Blender"**
