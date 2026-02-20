@@ -9,3 +9,7 @@ build/
 venv/
 *.egg
 .DS_Store
+
+# CAM/FreeCAD working files in exports
+exports/*.FCStd
+exports/*.FCBak
