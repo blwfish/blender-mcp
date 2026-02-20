@@ -1,13 +1,13 @@
-# COVA Blender MCP
+# Blender MCP
 
-MCP server for driving Blender from Claude Code. Part of the COVA Layout Project (C&O Virginia Operations, HO scale).
+MCP server for driving Blender from Claude Code.
 
 Blender owns organic and natural geometry: trees, human figures, terrain features, rock faces, and streambeds. This MCP server lets Claude Code control Blender for these workflows without requiring direct Blender UI interaction.
 
 ## Components
 
-- **MCP Server** (`src/cova_blender_mcp/`) — FastMCP server connecting Claude Code to Blender over TCP
-- **Blender Addon** (`addon/cova_mcp_bridge.py`) — TCP socket server running inside Blender
+- **MCP Server** (`src/blender_mcp/`) — FastMCP server connecting Claude Code to Blender over TCP
+- **Blender Addon** (`addon/blender_mcp_bridge.py`) — TCP socket server running inside Blender
 
 ## Installation
 
@@ -15,15 +15,15 @@ Blender owns organic and natural geometry: trees, human figures, terrain feature
 
 1. Open Blender
 2. Edit → Preferences → Add-ons → Install from Disk
-3. Select `addon/cova_mcp_bridge.py`
+3. Select `addon/blender_mcp_bridge.py`
 4. Enable the addon (checkbox)
-5. The server starts automatically. Verify in View3D → Sidebar (N) → COVA MCP tab
+5. The server starts automatically. Verify in View3D → Sidebar (N) → Blender MCP tab
 
 ### 2. Install the MCP Server
 
 Development install:
 ```bash
-cd cova-blender-mcp
+cd blender-mcp
 pip install -e ".[test]"
 ```
 
@@ -40,7 +40,7 @@ Add to `~/.claude.json` or project `.claude.json`:
   "mcpServers": {
     "blender": {
       "command": "python",
-      "args": ["-m", "cova_blender_mcp.server"]
+      "args": ["-m", "blender_mcp.server"]
     }
   }
 }
@@ -52,7 +52,7 @@ Or with uvx (after publishing):
   "mcpServers": {
     "blender": {
       "command": "uvx",
-      "args": ["cova-blender-mcp"]
+      "args": ["blender-mcp"]
     }
   }
 }
@@ -92,7 +92,7 @@ All modeling occurs at **full prototype dimensions** (meters). Scale is applied 
 
 **"Cannot connect to Blender"**
 - Ensure Blender is running with the addon enabled
-- Check View3D → Sidebar → COVA MCP: Status should show "Listening"
+- Check View3D → Sidebar → Blender MCP: Status should show "Listening"
 - Default port is 9876; check for conflicts
 
 **"Protocol version mismatch"**
