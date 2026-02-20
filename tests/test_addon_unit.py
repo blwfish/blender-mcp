@@ -76,6 +76,32 @@ class TestPendingCommand:
         assert pending.get_response(timeout=0.05) is None
 
 
+class TestAddonLogger:
+    """Addon-side file logging."""
+
+    def test_log_file_created(self, addon, tmp_path, monkeypatch):
+        monkeypatch.setenv("BLENDERMCP_LOG_DIR", str(tmp_path))
+        addon._setup_logger()
+        assert (tmp_path / "addon.log").exists()
+
+    def test_logger_has_file_handler(self, addon, tmp_path, monkeypatch):
+        import logging
+        monkeypatch.setenv("BLENDERMCP_LOG_DIR", str(tmp_path))
+        log = addon._setup_logger()
+        from logging.handlers import RotatingFileHandler
+        assert any(isinstance(h, RotatingFileHandler) for h in log.handlers)
+
+    def test_error_written_to_file(self, addon, tmp_path, monkeypatch):
+        monkeypatch.setenv("BLENDERMCP_LOG_DIR", str(tmp_path))
+        log = addon._setup_logger()
+        log.error("test error sentinel XYZ")
+        # flush handlers
+        for h in log.handlers:
+            h.flush()
+        content = (tmp_path / "addon.log").read_text()
+        assert "test error sentinel XYZ" in content
+
+
 class TestMessageHelpers:
     """Smoke-test the pure-Python message helpers."""
 

@@ -94,7 +94,8 @@ The server writes structured logs to `/tmp/blender_mcp_debug/` (override with `B
 
 | File | Contents |
 |------|----------|
-| `blender_mcp.log` | Rotating text log — every tool call, errors with full tracebacks |
+| `blender_mcp.log` | MCP server — every tool call, errors with full tracebacks |
+| `addon.log` | Blender addon — connect events, command errors, bpy tracebacks |
 | `operations_YYYYMMDD.json` | Newline-delimited JSON — one entry per call (errors always; all calls in VERBOSE mode) |
 
 **LEAN mode** (default): only error details are verbose. **VERBOSE mode**: set `BLENDERMCP_LOG_LEVEL=DEBUG`.

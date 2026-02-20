@@ -37,7 +37,8 @@ pytest tests/ -v
 
 | File | Contents |
 |------|----------|
-| `/tmp/blender_mcp_debug/blender_mcp.log` | Rotating text log (10 MB × 5); every tool call, errors with tracebacks |
+| `/tmp/blender_mcp_debug/blender_mcp.log` | MCP server: every tool call, errors with tracebacks (rotating 10 MB × 5) |
+| `/tmp/blender_mcp_debug/addon.log` | Blender addon: connect/disconnect events, command errors, bpy tracebacks (rotating 10 MB × 5) |
 | `/tmp/blender_mcp_debug/operations_YYYYMMDD.json` | Newline-delimited JSON; one entry per tool call (errors always; successes in VERBOSE mode) |
 
 Override log location: `BLENDERMCP_LOG_DIR=/path/to/dir`

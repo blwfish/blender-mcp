@@ -72,12 +72,52 @@ ERR_INTERNAL_ERROR    = "INTERNAL_ERROR"
 # ─── Logging Setup ────────────────────────────────────────────────────────────
 
 def _setup_logger() -> logging.Logger:
+    """
+    Write to a rotating file so tracebacks survive Blender console scroll/close.
+    Also mirrors to stdout so errors remain visible in Blender's system console.
+
+    Log file: $BLENDERMCP_LOG_DIR/addon.log  (default /tmp/blender_mcp_debug/)
+    Level:    INFO normally; DEBUG when BLENDERMCP_LOG_LEVEL=DEBUG
+    """
     log = logging.getLogger("blender_mcp_bridge")
-    if not log.handlers:
-        h = logging.StreamHandler(sys.stdout)
-        h.setFormatter(logging.Formatter("%(asctime)s [Blender MCP] %(levelname)s %(message)s"))
-        log.addHandler(h)
-    log.setLevel(logging.INFO)
+
+    # Always reset handlers so reinstalling the addon points to the current dir.
+    for h in log.handlers[:]:
+        log.removeHandler(h)
+        h.close()
+
+    level_name = os.environ.get("BLENDERMCP_LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    log.setLevel(level)
+    log.propagate = False
+
+    fmt = logging.Formatter("%(asctime)s [Blender MCP addon] %(levelname)-8s %(message)s")
+
+    # Rotating file — same directory as the MCP server logs
+    log_dir = os.environ.get("BLENDERMCP_LOG_DIR", "/tmp/blender_mcp_debug")
+    try:
+        os.makedirs(log_dir, exist_ok=True)
+        from logging.handlers import RotatingFileHandler
+        fh = RotatingFileHandler(
+            os.path.join(log_dir, "addon.log"),
+            maxBytes=10 * 1024 * 1024,
+            backupCount=5,
+            encoding="utf-8",
+        )
+        fh.setLevel(level)
+        fh.setFormatter(fmt)
+        log.addHandler(fh)
+    except Exception as e:
+        # Don't let logging setup break the addon — fall through to stdout only
+        print(f"[Blender MCP] WARNING: could not open log file in {log_dir!r}: {e}")
+
+    # Stdout mirror so errors also appear in Blender's system console
+    sh = logging.StreamHandler(sys.stdout)
+    sh.setLevel(logging.WARNING)   # only warnings+ to console to keep it quiet
+    sh.setFormatter(fmt)
+    log.addHandler(sh)
+
+    log.info("Blender MCP addon logger started — logs: %s/addon.log", log_dir)
     return log
 
 logger = _setup_logger()
