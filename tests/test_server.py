@@ -7,8 +7,8 @@ import asyncio
 import json
 import pytest
 
-from cova_blender_mcp.connection import BlenderConnection, BlenderConnectionError
-from cova_blender_mcp.protocol import PROTOCOL_VERSION, Command, ErrorCode
+from blender_mcp.connection import BlenderConnection, BlenderConnectionError
+from blender_mcp.protocol import PROTOCOL_VERSION, Command, ErrorCode
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────

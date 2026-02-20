@@ -1,20 +1,20 @@
 """
-COVA MCP Bridge — Blender Addon
+Blender MCP Bridge — Blender Addon
 
-TCP socket server that receives JSON commands from the COVA Blender MCP server
+TCP socket server that receives JSON commands from the Blender MCP server
 and executes them on Blender's main thread. Installable via:
-    Edit → Preferences → Add-ons → Install from Disk → cova_mcp_bridge.py
+    Edit → Preferences → Add-ons → Install from Disk → blender_mcp_bridge.py
 
 Protocol: JSON objects delimited by newline, over TCP on localhost:9876.
 See protocol specification in docs/SPEC.md.
 """
 
 bl_info = {
-    "name": "COVA Blender MCP Bridge",
-    "author": "COVA Project",
+    "name": "Blender MCP Bridge",
+    "author": "",
     "version": (0, 1, 0),
     "blender": (3, 6, 0),
-    "location": "View3D > Sidebar > COVA MCP",
+    "location": "View3D > Sidebar > Blender MCP",
     "description": "TCP server for MCP-driven organic geometry generation",
     "category": "Interface",
 }
@@ -72,10 +72,10 @@ ERR_INTERNAL_ERROR    = "INTERNAL_ERROR"
 # ─── Logging Setup ────────────────────────────────────────────────────────────
 
 def _setup_logger() -> logging.Logger:
-    log = logging.getLogger("cova_mcp_bridge")
+    log = logging.getLogger("blender_mcp_bridge")
     if not log.handlers:
         h = logging.StreamHandler(sys.stdout)
-        h.setFormatter(logging.Formatter("%(asctime)s [COVA MCP] %(levelname)s %(message)s"))
+        h.setFormatter(logging.Formatter("%(asctime)s [Blender MCP] %(levelname)s %(message)s"))
         log.addHandler(h)
     log.setLevel(logging.INFO)
     return log
@@ -163,7 +163,7 @@ def handle_execute_code(params: dict) -> dict:
         sys.stdout = captured_out
         sys.stderr = captured_err
         # Compile so we can capture the last expression's value
-        compiled = compile(code, "<cova_mcp>", "exec")
+        compiled = compile(code, "<blender_mcp>", "exec")
         ns: dict[str, Any] = {"__name__": "__main__"}
         exec(compiled, ns)
         # Try to get last expression value (like REPL behavior)
@@ -535,9 +535,9 @@ def handle_screenshot(params: dict) -> dict:
         offscreen.free()
 
         # Encode to PNG via Blender image API
-        img = bpy.data.images.new("_cova_mcp_screenshot", width=width, height=height, alpha=True)
+        img = bpy.data.images.new("_blender_mcp_screenshot", width=width, height=height, alpha=True)
         img.pixels.foreach_set([p / 255.0 for p in pixels])
-        img.filepath_raw = filepath or "/tmp/_cova_mcp_screenshot.png"
+        img.filepath_raw = filepath or "/tmp/_blender_mcp_screenshot.png"
         img.file_format = "PNG"
 
         if filepath:
@@ -558,7 +558,7 @@ def handle_screenshot(params: dict) -> dict:
     except Exception as e:
         # Fallback: try viewport screenshot operator
         logger.warning("Offscreen render failed (%s), trying operator fallback", e)
-        tmp_path = filepath or "/tmp/_cova_mcp_screenshot.png"
+        tmp_path = filepath or "/tmp/_blender_mcp_screenshot.png"
         try:
             with bpy.context.temp_override(area=area, region=region):
                 bpy.ops.screen.screenshot(filepath=tmp_path, full=False)
@@ -739,11 +739,11 @@ class _PendingCommand:
 
 
 class ClientConnection:
-    def __init__(self, sock: socket.socket, addr: tuple, bridge: "COVAMCPBridge"):
+    def __init__(self, sock: socket.socket, addr: tuple, bridge: "BlenderMCPBridge"):
         self.sock = sock
         self.addr = addr
         self.bridge = bridge
-        self._thread = threading.Thread(target=self._run, daemon=True, name=f"cova-mcp-client-{addr}")
+        self._thread = threading.Thread(target=self._run, daemon=True, name=f"blender-mcp-client-{addr}")
         self._thread.start()
 
     def _run(self) -> None:
@@ -799,7 +799,7 @@ class ClientConnection:
             logger.warning("Failed to send response to %s: %s", self.addr, e)
 
 
-class COVAMCPBridge:
+class BlenderMCPBridge:
     def __init__(self):
         self._server_socket: socket.socket | None = None
         self._server_thread: threading.Thread | None = None
@@ -823,11 +823,11 @@ class COVAMCPBridge:
             self._running = True
             self._status = "listening"
             self._server_thread = threading.Thread(
-                target=self._accept_loop, daemon=True, name="cova-mcp-server"
+                target=self._accept_loop, daemon=True, name="blender-mcp-server"
             )
             self._server_thread.start()
             bpy.app.timers.register(self._main_thread_tick, persistent=True)
-            logger.info("COVA MCP Bridge listening on 127.0.0.1:%d", port)
+            logger.info("Blender MCP Bridge listening on 127.0.0.1:%d", port)
         except OSError as e:
             self._status = "error"
             logger.error("Failed to start server on port %d: %s", port, e)
@@ -844,7 +844,7 @@ class COVAMCPBridge:
             self._server_socket = None
         if bpy.app.timers.is_registered(self._main_thread_tick):
             bpy.app.timers.unregister(self._main_thread_tick)
-        logger.info("COVA MCP Bridge stopped")
+        logger.info("Blender MCP Bridge stopped")
 
     def _accept_loop(self) -> None:
         while self._running:
@@ -880,19 +880,19 @@ class COVAMCPBridge:
 
 # ─── Singleton Bridge Instance ────────────────────────────────────────────────
 
-_bridge: COVAMCPBridge | None = None
+_bridge: BlenderMCPBridge | None = None
 
 
-def get_bridge() -> COVAMCPBridge:
+def get_bridge() -> BlenderMCPBridge:
     global _bridge
     if _bridge is None:
-        _bridge = COVAMCPBridge()
+        _bridge = BlenderMCPBridge()
     return _bridge
 
 
 # ─── Preferences ─────────────────────────────────────────────────────────────
 
-class COVAMCPPreferences(bpy.types.AddonPreferences):
+class BlenderMCPPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
     port: bpy.props.IntProperty(
@@ -934,42 +934,42 @@ class COVAMCPPreferences(bpy.types.AddonPreferences):
 
 # ─── Operators ────────────────────────────────────────────────────────────────
 
-class COVA_OT_StartServer(bpy.types.Operator):
-    bl_idname = "cova_mcp.start_server"
+class BLENDERMCP_OT_StartServer(bpy.types.Operator):
+    bl_idname = "blender_mcp.start_server"
     bl_label = "Start MCP Server"
-    bl_description = "Start the COVA MCP Bridge TCP server"
+    bl_description = "Start the Blender MCP Bridge TCP server"
 
     def execute(self, context):
         prefs = context.preferences.addons[__name__].preferences
         bridge = get_bridge()
         try:
             bridge.start(port=prefs.port)
-            self.report({"INFO"}, f"COVA MCP Bridge started on port {prefs.port}")
+            self.report({"INFO"}, f"Blender MCP Bridge started on port {prefs.port}")
         except OSError as e:
             self.report({"ERROR"}, f"Failed to start server: {e}")
         return {"FINISHED"}
 
 
-class COVA_OT_StopServer(bpy.types.Operator):
-    bl_idname = "cova_mcp.stop_server"
+class BLENDERMCP_OT_StopServer(bpy.types.Operator):
+    bl_idname = "blender_mcp.stop_server"
     bl_label = "Stop MCP Server"
-    bl_description = "Stop the COVA MCP Bridge TCP server"
+    bl_description = "Stop the Blender MCP Bridge TCP server"
 
     def execute(self, context):
         bridge = get_bridge()
         bridge.stop()
-        self.report({"INFO"}, "COVA MCP Bridge stopped")
+        self.report({"INFO"}, "Blender MCP Bridge stopped")
         return {"FINISHED"}
 
 
 # ─── UI Panel ─────────────────────────────────────────────────────────────────
 
-class COVA_PT_MCPPanel(bpy.types.Panel):
-    bl_label = "COVA MCP"
-    bl_idname = "COVA_PT_mcp_panel"
+class BLENDERMCP_PT_MCPPanel(bpy.types.Panel):
+    bl_label = "Blender MCP"
+    bl_idname = "BLENDERMCP_PT_mcp_panel"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "COVA MCP"
+    bl_category = "Blender MCP"
 
     def draw(self, context):
         layout = self.layout
@@ -995,18 +995,18 @@ class COVA_PT_MCPPanel(bpy.types.Panel):
         # Start/Stop buttons
         row = layout.row()
         if bridge._running:
-            row.operator("cova_mcp.stop_server", icon="PAUSE")
+            row.operator("blender_mcp.stop_server", icon="PAUSE")
         else:
-            row.operator("cova_mcp.start_server", icon="PLAY")
+            row.operator("blender_mcp.start_server", icon="PLAY")
 
 
 # ─── Registration ─────────────────────────────────────────────────────────────
 
 _CLASSES = [
-    COVAMCPPreferences,
-    COVA_OT_StartServer,
-    COVA_OT_StopServer,
-    COVA_PT_MCPPanel,
+    BlenderMCPPreferences,
+    BLENDERMCP_OT_StartServer,
+    BLENDERMCP_OT_StopServer,
+    BLENDERMCP_PT_MCPPanel,
 ]
 
 

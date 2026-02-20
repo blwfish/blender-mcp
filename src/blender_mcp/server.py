@@ -1,5 +1,5 @@
 """
-COVA Blender MCP — FastMCP Server
+Blender MCP — FastMCP Server
 
 Exposes 7 MCP tools to Claude Code and translates them to TCP commands
 directed at the Blender addon.
@@ -25,7 +25,7 @@ from .protocol import Command, ErrorCode
 # MCP servers must NOT write anything to stdout (corrupts the stdio transport).
 # Log to stderr or a file only.
 
-log_level = os.environ.get("COVA_LOG_LEVEL", "INFO").upper()
+log_level = os.environ.get("BLENDERMCP_LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
     level=getattr(logging, log_level, logging.INFO),
     format="%(asctime)s %(name)s %(levelname)s %(message)s",
@@ -36,11 +36,11 @@ logger = logging.getLogger(__name__)
 # ─── MCP Server ───────────────────────────────────────────────────────────────
 
 mcp = FastMCP(
-    name="cova-blender-mcp",
+    name="blender-mcp",
     instructions=(
         "Control Blender for organic geometry generation (trees, figures, terrain, "
         "rock faces) for HO-scale model railroad production. "
-        "Blender must be running with the COVA MCP Bridge addon enabled before using these tools."
+        "Blender must be running with the Blender MCP Bridge addon enabled before using these tools."
     ),
 )
 
@@ -385,7 +385,7 @@ async def manage_connection(action: str) -> dict[str, Any]:
         st = conn.status()
         if not conn._connected:
             st["note"] = (
-                "Not connected. Ensure Blender is running with the COVA MCP Bridge addon "
+                "Not connected. Ensure Blender is running with the Blender MCP Bridge addon "
                 "enabled, then call manage_connection(action='reconnect')."
             )
         return {"status": "success", **st}
@@ -415,7 +415,7 @@ async def manage_connection(action: str) -> dict[str, Any]:
 
 def main() -> None:
     """Run the MCP server (stdio transport)."""
-    logger.info("COVA Blender MCP server starting")
+    logger.info("Blender MCP server starting")
     mcp.run()
 
 

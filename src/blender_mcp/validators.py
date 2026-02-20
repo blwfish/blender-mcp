@@ -1,5 +1,5 @@
 """
-COVA Blender MCP — Server-Side Validation Helpers
+Blender MCP — Server-Side Validation Helpers
 
 These helpers validate parameters and interpret printability results on the
 MCP server side, without requiring Blender. Heavy mesh analysis is done in

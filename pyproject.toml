@@ -1,7 +1,7 @@
 [project]
-name = "cova-blender-mcp"
+name = "blender-mcp"
 version = "0.1.0"
-description = "MCP server to control Blender for organic geometry generation (COVA Layout Project)"
+description = "MCP server to control Blender for organic geometry generation"
 requires-python = ">=3.10"
 readme = "README.md"
 license = { text = "MIT" }
@@ -18,20 +18,20 @@ test = [
 ]
 
 [project.scripts]
-cova-blender-mcp = "cova_blender_mcp.server:main"
+blender-mcp = "blender_mcp.server:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cova_blender_mcp"]
+packages = ["src/blender_mcp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
-    "integration: tests requiring Blender running with COVA MCP Bridge addon",
+    "integration: tests requiring Blender running with Blender MCP Bridge addon",
 ]
 
 [tool.ruff]

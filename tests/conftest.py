@@ -1,5 +1,5 @@
 """
-pytest configuration for COVA Blender MCP tests.
+pytest configuration for Blender MCP tests.
 
 Unit tests (test_protocol.py, test_server.py) require no external processes.
 Addon tests (test_addon.py) require Blender running headless.
@@ -14,7 +14,7 @@ from typing import Any, Generator
 
 import pytest
 
-from cova_blender_mcp.protocol import PROTOCOL_VERSION, Request, Response
+from blender_mcp.protocol import PROTOCOL_VERSION, Request, Response
 
 
 # ─── Mock Blender TCP Server ─────────────────────────────────────────────────

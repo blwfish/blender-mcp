@@ -6,7 +6,7 @@ Tests message serialization, version checking, error codes, and parsing.
 import json
 import pytest
 
-from cova_blender_mcp.protocol import (
+from blender_mcp.protocol import (
     PROTOCOL_VERSION,
     Command,
     ErrorCode,

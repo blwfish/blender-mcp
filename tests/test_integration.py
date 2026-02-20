@@ -1,5 +1,5 @@
 """
-Integration tests — requires Blender running with the COVA MCP Bridge addon enabled.
+Integration tests — requires Blender running with the Blender MCP Bridge addon enabled.
 
 Run with:
     pytest tests/test_integration.py --blender-running
@@ -11,8 +11,8 @@ attempt to run them without Blender available.
 import socket
 import pytest
 
-from cova_blender_mcp.connection import BlenderConnection, BlenderConnectionError
-from cova_blender_mcp.protocol import Command
+from blender_mcp.connection import BlenderConnection, BlenderConnectionError
+from blender_mcp.protocol import Command
 
 
 def _blender_available() -> bool:
@@ -30,7 +30,7 @@ def pytest_addoption(parser):
         "--blender-running",
         action="store_true",
         default=False,
-        help="Run integration tests that require Blender with COVA MCP Bridge addon",
+        help="Run integration tests that require Blender with Blender MCP Bridge addon",
     )
 
 
@@ -42,7 +42,7 @@ def pytest_configure(config):
 
 requires_blender = pytest.mark.skipif(
     not _blender_available(),
-    reason="Blender not running on localhost:9876 — start Blender with COVA MCP Bridge addon",
+    reason="Blender not running on localhost:9876 — start Blender with Blender MCP Bridge addon",
 )
 
 

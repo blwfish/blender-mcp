@@ -1,19 +1,19 @@
-# COVA MCP Bridge — Blender Addon
+# Blender MCP Bridge — Blender Addon
 
-Single-file Blender addon that runs a TCP socket server, enabling the COVA Blender MCP server to drive Blender remotely.
+Single-file Blender addon that runs a TCP socket server, enabling the Blender MCP server to drive Blender remotely.
 
 ## Installation
 
 1. Open Blender
 2. Edit → Preferences → Add-ons → Install from Disk
-3. Select `cova_mcp_bridge.py` (this file)
+3. Select `blender_mcp_bridge.py` (this file)
 4. Check the checkbox to enable it
 
 The server starts automatically (configurable in preferences).
 
 ## UI
 
-View3D → Sidebar (N key) → COVA MCP tab:
+View3D → Sidebar (N key) → Blender MCP tab:
 - Status: Listening / Stopped / Error
 - Port: 9876 (default, configurable in preferences)
 - Connection count and last command for diagnostics
@@ -21,7 +21,7 @@ View3D → Sidebar (N key) → COVA MCP tab:
 
 ## Configuration
 
-Edit → Preferences → Add-ons → COVA Blender MCP Bridge:
+Edit → Preferences → Add-ons → Blender MCP Bridge:
 - **Port**: TCP listen port (default 9876)
 - **Auto-start on Blender launch**: Start server when addon loads
 - **Log Level**: DEBUG / INFO / WARNING / ERROR
@@ -29,7 +29,7 @@ Edit → Preferences → Add-ons → COVA Blender MCP Bridge:
 
 ## Protocol
 
-Speaks the COVA MCP TCP protocol: newline-delimited JSON with protocol version `0.1.0`.
+Speaks the Blender MCP TCP protocol: newline-delimited JSON with protocol version `0.1.0`.
 The addon has no knowledge of MCP — it speaks only TCP/JSON, and can be driven by any TCP client for testing.
 
 ## Dependencies

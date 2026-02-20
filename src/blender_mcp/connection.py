@@ -1,5 +1,5 @@
 """
-COVA Blender MCP — TCP Connection Management
+Blender MCP — TCP Connection Management
 
 Manages the async TCP connection from the MCP server to the Blender addon.
 Handles connection lifecycle, timeouts, and all failure modes with specific,
@@ -74,8 +74,8 @@ class BlenderConnection:
             raise BlenderConnectionError(
                 ErrorCode.CONNECTION_REFUSED,
                 f"Cannot connect to Blender on {self.host}:{self.port}. "
-                "Ensure Blender is running with the COVA MCP Bridge addon enabled "
-                "and the server is started (View3D > Sidebar > COVA MCP).",
+                "Ensure Blender is running with the Blender MCP Bridge addon enabled "
+                "and the server is started (View3D > Sidebar > Blender MCP).",
             )
         except asyncio.TimeoutError:
             raise BlenderConnectionError(

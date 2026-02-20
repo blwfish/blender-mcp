@@ -1,5 +1,5 @@
 """
-COVA Blender MCP — Protocol Definitions
+Blender MCP — Protocol Definitions
 
 Shared protocol between the MCP server and the Blender addon.
 Version carried in every message for compatibility checking.
