@@ -13,6 +13,7 @@ import os
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ImageContent
 
 from .connection import (
     DEFAULT_HOST,
@@ -345,7 +346,14 @@ async def screenshot(
         return _connection_error_result(e)
 
     if resp.is_success:
-        return {"status": "success", **(resp.result or {})}
+        result = resp.result or {}
+        if "image_base64" in result:
+            return ImageContent(
+                type="image",
+                data=result["image_base64"],
+                mimeType="image/png",
+            )
+        return {"status": "success", **result}
     return _blender_error_result(resp.error)
 
 
