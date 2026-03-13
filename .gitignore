@@ -13,3 +13,6 @@ venv/
 # CAM/FreeCAD working files in exports
 exports/*.FCStd
 exports/*.FCBak
+
+# G-code exports
+exports/*.gcode
