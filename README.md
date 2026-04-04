@@ -37,6 +37,17 @@ pytest tests/test_protocol.py tests/test_server.py tests/test_debug.py -v
 
 See [AGENT-INSTALL.md](AGENT-INSTALL.md) for full technical details, architecture, contributing guidelines, and how to add new tools.
 
+## Security
+
+This MCP server grants your AI agent full access to Blender's Python environment, including the ability to run arbitrary code via `execute_blender_code`. This is by design — it's what makes the tool useful. However, you should be aware of the implications:
+
+- **Arbitrary code execution**: The `execute_blender_code` tool can run any Python code inside Blender, with full access to the filesystem, network, and OS. This is equivalent to giving your AI agent a shell.
+- **Unrestricted file access**: Mesh import/export operations accept arbitrary filesystem paths. The agent can read and write any file your user account can access.
+- **Localhost TCP**: The MCP server communicates with the Blender addon over TCP on `127.0.0.1:9876`. It is not exposed to the network, but any local process can connect to this port.
+- **No authentication**: The TCP channel has no shared secret or token. On a single-user workstation this is fine; on shared systems, be aware that other local users could connect.
+
+**This tool is intended for local development use on a single-user machine.** Do not expose it to untrusted networks or users.
+
 ## License
 
 MIT
