@@ -10,7 +10,7 @@ Adapted from freecad-mcp/AICopilot/freecad_debug.py, with modifications
 for FastMCP async tools and the Blender TCP connection model.
 
 Configuration via environment variables:
-  BLENDERMCP_LOG_DIR    Log directory (default: /tmp/blender_mcp_debug)
+  BLENDERMCP_LOG_DIR    Log directory (default: ~/.blender-mcp/logs)
   BLENDERMCP_LOG_LEVEL  DEBUG enables verbose mode; anything else is lean
                         (default: INFO → lean)
 """
@@ -30,7 +30,7 @@ from typing import Any, Callable
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
-_DEFAULT_LOG_DIR = "/tmp/blender_mcp_debug"
+_DEFAULT_LOG_DIR = os.path.expanduser("~/.blender-mcp/logs")
 _LOG_DIR = os.environ.get("BLENDERMCP_LOG_DIR", _DEFAULT_LOG_DIR)
 _LEAN = os.environ.get("BLENDERMCP_LOG_LEVEL", "INFO").upper() != "DEBUG"
 
@@ -58,7 +58,7 @@ class BlenderMCPDebugger:
         self.logger = self._setup_logging()
 
     def _setup_logging(self) -> logging.Logger:
-        os.makedirs(self.log_dir, exist_ok=True)
+        os.makedirs(self.log_dir, mode=0o700, exist_ok=True)
 
         log = logging.getLogger("blender_mcp")
         log.setLevel(logging.DEBUG)  # handlers filter individually

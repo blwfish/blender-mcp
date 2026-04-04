@@ -69,6 +69,30 @@ ERR_VERSION_MISMATCH  = "VERSION_MISMATCH"
 ERR_INTERNAL_ERROR    = "INTERNAL_ERROR"
 
 
+# ─── Path Validation ─────────────────────────────────────────────────────────
+
+def _validate_filepath(filepath: str, must_exist: bool = False) -> str:
+    """Validate that a filepath is within allowed directories."""
+    import pathlib
+    resolved = pathlib.Path(filepath).resolve()
+    # Allow home directory, /tmp, and common project paths
+    allowed_roots = [
+        pathlib.Path.home(),
+        pathlib.Path("/tmp"),
+        pathlib.Path("/Volumes"),
+    ]
+    if not any(resolved == root or resolved.is_relative_to(root) for root in allowed_roots):
+        raise ValueError(f"Path not in allowed directory: {resolved}")
+    # Block obviously dangerous paths
+    dangerous = ["/etc", "/usr", "/bin", "/sbin", "/var/run", "/System", "/Library"]
+    for d in dangerous:
+        if str(resolved).startswith(d):
+            raise ValueError(f"Path in restricted directory: {resolved}")
+    if must_exist and not resolved.exists():
+        raise FileNotFoundError(f"File not found: {resolved}")
+    return str(resolved)
+
+
 # ─── Logging Setup ────────────────────────────────────────────────────────────
 
 def _setup_logger() -> logging.Logger:
@@ -76,7 +100,7 @@ def _setup_logger() -> logging.Logger:
     Write to a rotating file so tracebacks survive Blender console scroll/close.
     Also mirrors to stdout so errors remain visible in Blender's system console.
 
-    Log file: $BLENDERMCP_LOG_DIR/addon.log  (default /tmp/blender_mcp_debug/)
+    Log file: $BLENDERMCP_LOG_DIR/addon.log  (default ~/.blender-mcp/logs/)
     Level:    INFO normally; DEBUG when BLENDERMCP_LOG_LEVEL=DEBUG
     """
     log = logging.getLogger("blender_mcp_bridge")
@@ -94,9 +118,9 @@ def _setup_logger() -> logging.Logger:
     fmt = logging.Formatter("%(asctime)s [Blender MCP addon] %(levelname)-8s %(message)s")
 
     # Rotating file — same directory as the MCP server logs
-    log_dir = os.environ.get("BLENDERMCP_LOG_DIR", "/tmp/blender_mcp_debug")
+    log_dir = os.environ.get("BLENDERMCP_LOG_DIR", os.path.expanduser("~/.blender-mcp/logs"))
     try:
-        os.makedirs(log_dir, exist_ok=True)
+        os.makedirs(log_dir, mode=0o700, exist_ok=True)
         from logging.handlers import RotatingFileHandler
         fh = RotatingFileHandler(
             os.path.join(log_dir, "addon.log"),
@@ -288,6 +312,10 @@ def handle_export_mesh(params: dict) -> dict:
     filepath = params.get("filepath", "")
     if not filepath:
         raise ValueError("Missing required param: filepath")
+    try:
+        filepath = _validate_filepath(filepath)
+    except (ValueError, FileNotFoundError) as e:
+        return {"error": str(e), "error_code": ERR_INVALID_PARAMS}
 
     fmt = params.get("format", "stl").lower()
     scale = float(params.get("scale", 1.0))
@@ -523,6 +551,11 @@ def handle_check_printability(params: dict) -> dict:
 
 def handle_screenshot(params: dict) -> dict:
     filepath = params.get("filepath")
+    if filepath:
+        try:
+            filepath = _validate_filepath(filepath)
+        except (ValueError, FileNotFoundError) as e:
+            return {"error": str(e), "error_code": ERR_INVALID_PARAMS}
     width = int(params.get("width", 1920))
     height = int(params.get("height", 1080))
 
@@ -581,8 +614,10 @@ def handle_import_mesh(params: dict) -> dict:
     filepath = params.get("filepath", "")
     if not filepath:
         raise ValueError("Missing required param: filepath")
-    if not os.path.exists(filepath):
-        raise FileNotFoundError(f"File not found: {filepath!r}")
+    try:
+        filepath = _validate_filepath(filepath, must_exist=True)
+    except (ValueError, FileNotFoundError) as e:
+        return {"error": str(e), "error_code": ERR_IMPORT_FAILED}
 
     fmt = params.get("format") or os.path.splitext(filepath)[1].lower().lstrip(".")
     scale = float(params.get("scale", 1.0))
