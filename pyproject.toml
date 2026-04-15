@@ -8,7 +8,7 @@ license = { text = "MIT" }
 
 dependencies = [
     "mcp>=1.0",
-    "fastmcp>=0.1",
+    "fastmcp>=3.2.4",
 ]
 
 [project.optional-dependencies]
