@@ -16,4 +16,4 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Run audit
-        run: uv run pip-audit --desc
+        run: uvx pip-audit --desc
