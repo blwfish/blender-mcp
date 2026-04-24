@@ -10,6 +10,11 @@ venv/
 *.egg
 .DS_Store
 
+# Local scaffolding (not tracked in repo)
+CLAUDE.md
+.claude/
+.claude.json
+
 # CAM/FreeCAD working files in exports
 exports/*.FCStd
 exports/*.FCBak
