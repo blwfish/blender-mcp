@@ -7,7 +7,7 @@ readme = "README.md"
 license = { text = "MIT" }
 
 dependencies = [
-    "mcp>=1.0",
+    "mcp>=1.27.0",
     "fastmcp>=0.1",
 ]
 
